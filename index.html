@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ASOS Weather Explorer - Global Weather Stations</title>
+
+    
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+    
+
+    <style>
+
+        * {
+
+            margin: 0;
+
+            padding: 0;
+
+            box-sizing: border-box;
+
+        }
+
+
+
+        :root {
+
+            --primary-color: #2563eb;
+
+            --secondary-color: #1e40af;
+
+            --success-color: #10b981;
+
+            --danger-color: #ef4444;
+
+            --background: #0f172a;
+
+            --surface: #1e293b;
+
+            --surface-light: #334155;
+
+            --text: #f1f5f9;
+
+            --text-secondary: #cbd5e1;
+
+            --border: #475569;
+
+        }
+
+
+
+        body {
+
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+            background: var(--background);
+
+            color: var(--text);
+
+            overflow: hidden;
+
+        }
+
+
+
+        #map {
+
+            position: absolute;
+
+            top: 0;
+
+            left: 0;
+
+            width: 100%;
+
+            height: 100%;
+
+            z-index: 1;
+
+        }
+
+
+
+        .header {
+
+            position: absolute;
+
+            top: 20px;
+
+            left: 20px;
+
+            z-index: 1000;
+
+            background: rgba(15, 23, 42, 0.95);
+
+            backdrop-filter: blur(10px);
+
+            padding: 20px 30px;
+
+            border-radius: 16px;
+
+            border: 1px solid var(--border);
+
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+
+            max-width: 400px;
+
+        }
+
+
+
+        .header h1 {
+
+            font-size: 24px;
+
+            font-weight: 700;
+
+            margin-bottom: 8px;
+
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+
+            -webkit-background-clip: text;
+
+            -webkit-text-fill-color: transparent;
+
+            background-clip: text;
+
+        }
+
+
+
+        .header p {
+
+            font-size: 14px;
+
+            color: var(--text-secondary);
+
+            line-height: 1.5;
+
+        }
+
+
+
+        .stats-panel {
+
+            position: absolute;
+
+            top: 20px;
+
+            right: 20px;
+
+            z-index: 1000;
+
+            background: rgba(15, 23, 42, 0.95);
+
+            backdrop-filter: blur(10px);
+
+            padding: 20px;
+
+            border-radius: 16px;
+
+            border: 1px solid var(--border);
+
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+
+            min-width: 250px;
+
+        }
+
+
+
+        .stat-item {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            padding: 12px 0;
+
+            border-bottom: 1px solid var(--border);
+
+        }
+
+
+
+        .stat-item:last-child {
+
+            border-bottom: none;
+
+        }
+
+
+
+        .stat-label {
+
+            font-size: 13px;
+
+            color: var(--text-secondary);
+
+            font-weight: 500;
+
+        }
+
+
+
+        .stat-value {
+
+            font-size: 20px;
+
+            font-weight: 700;
+
+            color: var(--primary-color);
+
+        }
+
+
+
+        .loading {
+
+            position: absolute;
+
+            top: 50%;
+
+            left: 50%;
+
+            transform: translate(-50%, -50%);
+
+            z-index: 10000;
+
+            text-align: center;
+
+        }
+
+
+
+        .spinner {
+
+            border: 3px solid var(--border);
+
+            border-top: 3px solid var(--primary-color);
+
+            border-radius: 50%;
+
+            width: 50px;
+
+            height: 50px;
+
+            animation: spin 1s linear infinite;
+
+            margin: 0 auto 20px;
+
+        }
+
+
+
+        @keyframes spin {
+
+            0% { transform: rotate(0deg); }
+
+            100% { transform: rotate(360deg); }
+
+        }
+
+
+
+        .loading-text {
+
+            font-size: 16px;
+
+            color: var(--text-secondary);
+
+        }
+
+
+
+        .detail-panel {
+
+            position: absolute;
+
+            bottom: 20px;
+
+            left: 50%;
+
+            transform: translateX(-50%);
+
+            z-index: 1000;
+
+            background: rgba(15, 23, 42, 0.98);
+
+            backdrop-filter: blur(10px);
+
+            padding: 30px;
+
+            border-radius: 20px;
+
+            border: 1px solid var(--border);
+
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+
+            width: 90%;
+
+            max-width: 1200px;
+
+            max-height: 500px;
+
+            overflow-y: auto;
+
+            display: none;
+
+        }
+
+
+
+        .detail-panel.active {
+
+            display: block;
+
+            animation: slideUp 0.3s ease-out;
+
+        }
+
+
+
+        @keyframes slideUp {
+
+            from {
+
+                opacity: 0;
+
+                transform: translateX(-50%) translateY(20px);
+
+            }
+
+            to {
+
+                opacity: 1;
+
+                transform: translateX(-50%) translateY(0);
+
+            }
+
+        }
+
+
+
+        .detail-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: start;
+
+            margin-bottom: 20px;
+
+        }
+
+
+
+        .detail-title {
+
+            flex: 1;
+
+        }
+
+
+
+        .detail-title h2 {
+
+            font-size: 28px;
+
+            font-weight: 700;
+
+            margin-bottom: 8px;
+
+        }
+
+
+
+        .detail-subtitle {
+
+            font-size: 14px;
+
+            color: var(--text-secondary);
+
+            display: flex;
+
+            gap: 16px;
+
+            flex-wrap: wrap;
+
+        }
+
+
+
+        .detail-subtitle span {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 6px;
+
+        }
+
+
+
+        .close-btn {
+
+            background: var(--surface-light);
+
+            border: 1px solid var(--border);
+
+            color: var(--text);
+
+            padding: 8px 16px;
+
+            border-radius: 8px;
+
+            cursor: pointer;
+
+            font-size: 14px;
+
+            font-weight: 600;
+
+            transition: all 0.2s;
+
+        }
+
+
+
+        .close-btn:hover {
+
+            background: var(--border);
+
+            transform: scale(1.05);
+
+        }
+
+
+
+        .chart-container {
+
+            margin-top: 20px;
+
+            background: var(--surface);
+
+            padding: 20px;
+
+            border-radius: 12px;
+
+            border: 1px solid var(--border);
+
+        }
+
+
+
+        .chart-title {
+
+            font-size: 16px;
+
+            font-weight: 600;
+
+            margin-bottom: 15px;
+
+            color: var(--text);
+
+        }
+
+
+
+        .error-message {
+
+            background: rgba(239, 68, 68, 0.1);
+
+            border: 1px solid var(--danger-color);
+
+            color: var(--danger-color);
+
+            padding: 12px;
+
+            border-radius: 8px;
+
+            margin-top: 12px;
+
+            font-size: 14px;
+
+        }
+
+
+
+        .weather-grid {
+
+            display: grid;
+
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+
+            gap: 16px;
+
+            margin-bottom: 24px;
+
+        }
+
+
+
+        .weather-card {
+
+            background: var(--surface);
+
+            padding: 16px;
+
+            border-radius: 12px;
+
+            border: 1px solid var(--border);
+
+            text-align: center;
+
+        }
+
+
+
+        .weather-card-label {
+
+            font-size: 12px;
+
+            color: var(--text-secondary);
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.5px;
+
+            margin-bottom: 8px;
+
+        }
+
+
+
+        .weather-card-value {
+
+            font-size: 32px;
+
+            font-weight: 700;
+
+            color: var(--text);
+
+        }
+
+
+
+        .weather-card-unit {
+
+            font-size: 16px;
+
+            color: var(--text-secondary);
+
+            margin-left: 4px;
+
+        }
+
+
+
+        .search-container {
+
+            position: absolute;
+
+            top: 20px;
+
+            left: 50%;
+
+            transform: translateX(-50%);
+
+            z-index: 1000;
+
+            width: 90%;
+
+            max-width: 500px;
+
+        }
+
+
+
+        .search-input {
+
+            width: 100%;
+
+            padding: 16px 20px;
+
+            background: rgba(15, 23, 42, 0.95);
+
+            backdrop-filter: blur(10px);
+
+            border: 1px solid var(--border);
+
+            border-radius: 12px;
+
+            color: var(--text);
+
+            font-size: 16px;
+
+            outline: none;
+
+            transition: all 0.2s;
+
+        }
+
+
+
+        .search-input:focus {
+
+            border-color: var(--primary-color);
+
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+
+        }
+
+
+
+        .search-input::placeholder {
+
+            color: var(--text-secondary);
+
+        }
+
+
+
+        /* Leaflet custom styles */
+
+        .leaflet-popup-content-wrapper {
+
+            background: var(--surface);
+
+            color: var(--text);
+
+            border-radius: 12px;
+
+            padding: 8px;
+
+        }
+
+
+
+        .leaflet-popup-tip {
+
+            background: var(--surface);
+
+        }
+
+
+
+        .station-popup {
+
+            padding: 12px;
+
+        }
+
+
+
+        .station-popup h3 {
+
+            font-size: 16px;
+
+            font-weight: 600;
+
+            margin-bottom: 8px;
+
+        }
+
+
+
+        .station-popup p {
+
+            font-size: 13px;
+
+            color: var(--text-secondary);
+
+            margin: 4px 0;
+
+        }
+
+
+
+        .station-popup button {
+
+            margin-top: 12px;
+
+            width: 100%;
+
+            padding: 8px;
+
+            background: var(--primary-color);
+
+            color: white;
+
+            border: none;
+
+            border-radius: 6px;
+
+            font-size: 14px;
+
+            font-weight: 600;
+
+            cursor: pointer;
+
+            transition: all 0.2s;
+
+        }
+
+
+
+        .station-popup button:hover {
+
+            background: var(--secondary-color);
+
+            transform: scale(1.02);
+
+        }
+
+
+
+        /* Custom cluster styles */
+
+        .marker-cluster {
+
+            background: rgba(37, 99, 235, 0.6);
+
+            border: 2px solid rgba(37, 99, 235, 0.9);
+
+        }
+
+
+
+        .marker-cluster div {
+
+            background: rgba(37, 99, 235, 0.8);
+
+            color: white;
+
+            font-weight: 700;
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+
+
+    <div class="header">
+
+        <h1>🌍 ASOS Weather Explorer</h1>
+
+        <p>Explore real-time weather data from thousands of ASOS stations worldwide. Click any station to view historical data and trends.</p>
+
+    </div>
+
+
+
+    <div class="stats-panel">
+
+        <div class="stat-item">
+
+            <span class="stat-label">Total Stations</span>
+
+            <span class="stat-value" id="total-stations">-</span>
+
+        </div>
+
+        <div class="stat-item">
+
+            <span class="stat-label">Countries</span>
+
+            <span class="stat-value" id="total-countries">-</span>
+
+        </div>
+
+        <div class="stat-item">
+
+            <span class="stat-label">Selected</span>
+
+            <span class="stat-value" id="selected-station">None</span>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="search-container">
+
+        <input 
+
+            type="text" 
+
+            class="search-input" 
+
+            id="search-input" 
+
+            placeholder="🔍 Search stations by name or ID..."
+
+        >
+
+    </div>
+
+
+
+    <div class="loading" id="loading">
+
+        <div class="spinner"></div>
+
+        <div class="loading-text">Loading weather stations...</div>
+
+    </div>
+
+
+
+    <div class="detail-panel" id="detail-panel">
+
+        <div class="detail-header">
+
+            <div class="detail-title">
+
+                <h2 id="station-name">-</h2>
+
+                <div class="detail-subtitle">
+
+                    <span><span id="station-location">-</span></span>
+
+                    <span><span id="station-elevation">-</span></span>
+
+                    <span><span id="station-id">-</span></span>
+
+                    <span></span><span id="station-network">-</span></span>
+
+                </div>
+
+            </div>
+
+            <button class="close-btn" onclick="closeDetailPanel()">✕ Close</button>
+
+        </div>
+
+
+
+        <div class="weather-grid" id="weather-stats"></div>
+
+
+
+        <div class="chart-container">
+
+            <div class="chart-title">Temperature & Dewpoint Trends</div>
+
+            <canvas id="tempChart"></canvas>
+
+        </div>
+
+
+
+        <div class="chart-container">
+
+            <div class="chart-title">Wind & Pressure Analysis</div>
+
+            <canvas id="windChart"></canvas>
+
+        </div>
+
+
+
+        <div class="chart-container">
+
+            <div class="chart-title">Precipitation History</div>
+
+            <canvas id="precipChart"></canvas>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Leaflet JS -->
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+    
+
+    <!-- Chart.js -->
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+
+
+    <script src="app.js"></script>
+
+</body>
+
+</html>
